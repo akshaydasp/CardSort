@@ -123,4 +123,15 @@ public class Card : MonoBehaviour, IPointerDownHandler
     {
         owner.StartCoroutine(FlipCoroutine(show));
     }
+
+    public void SetMatchedImmediate()
+    {
+        IsMatched = true;
+        var cg = GetComponent<CanvasGroup>();
+        if (!cg) cg = gameObject.AddComponent<CanvasGroup>();
+        cg.alpha = 0f;
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+        gameObject.SetActive(false);
+    }
 }

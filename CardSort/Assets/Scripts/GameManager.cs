@@ -10,9 +10,9 @@ public class GameManager : MonoBehaviour
     public static GameManager instance;
     [Header("Prefabs & assets")]
     public Card cardPrefab;
-    public RectTransform boardArea; // container to fit the grid into
+    public RectTransform boardArea; 
     public Sprite cardBackSprite;
-    public List<Sprite> cardFaceSprites; // provide unique sprites
+    public List<Sprite> cardFaceSprites; 
     [Header("Game settings")]
     public int cols = 4;
     public int rows = 3;
@@ -20,10 +20,20 @@ public class GameManager : MonoBehaviour
     public float flipDuration = 0.25f;
     public float mismatchDelay = 0.8f;
     public bool shuffle = true;
+    [Header("Layouts")]
+    public Vector2Int[] allowedLayouts = new Vector2Int[]
+{
+    new Vector2Int(2,2),
+    new Vector2Int(2,3),
+    new Vector2Int(3,4),
+    new Vector2Int(4,4),
+    new Vector2Int(5,4),
+    new Vector2Int(5,6),
+};
 
     // runtime
     List<Card> allCards = new List<Card>();
-    Queue<Card> waitingQueue = new Queue<Card>(); // FIFO waiting cards
+    Queue<Card> waitingQueue = new Queue<Card>(); 
     int pairsCount => (cols * rows) / 2;
 
     [Header("Scoring")]
@@ -35,9 +45,9 @@ public class GameManager : MonoBehaviour
     }
     void Start()
     {
-        SetupBoard(cols, rows);
+        NewRandomGame();
     }
-
+    // optional function for manual layout
     public void SetupBoard(int c, int r)
     {
         cols = c; rows = r;
@@ -211,7 +221,7 @@ public class GameManager : MonoBehaviour
             if (state.matchedIndices.Contains(i))
             {
                 cobj.ForceFlipImmediate(true);
-                cobj.SetMatched();
+                cobj.SetMatchedImmediate(); 
             }
             else if (state.faceUpIndices.Contains(i))
             {
@@ -221,6 +231,15 @@ public class GameManager : MonoBehaviour
         LayoutScaleCards();
         if (scoreManager) scoreManager.LoadState(state);
     }
+    void OnApplicationPause(bool pause)
+    {
+        if (pause) SaveGame();
+    }
+    void OnApplicationQuit()
+    {
+        SaveGame();
+    }
+
     #endregion
 
     public List<int> GetCardOrder()
@@ -243,4 +262,46 @@ public class GameManager : MonoBehaviour
             if (allCards[i].IsFaceUp && !allCards[i].IsMatched) list.Add(i);
         return list;
     }
+
+    #region Randomly calling Layouts
+
+    System.Random _layoutRng = new System.Random();
+    Vector2Int _lastLayout;  
+
+
+    public void NewRandomGame()
+    {
+        var pick = PickRandomLayoutDifferent();
+        SetupBoard(pick.x, pick.y);
+        _lastLayout = pick;
+    }
+
+    // Ensures we always pick an even cell count, and try not to repeat the last layout
+    Vector2Int PickRandomLayoutDifferent()
+    {
+        if (allowedLayouts == null || allowedLayouts.Length == 0)
+        {
+            // Fallback: keep current cols/rows if none configured
+            return new Vector2Int(cols, rows);
+        }
+
+        // Filter to even-cell layouts
+        var valid = new System.Collections.Generic.List<Vector2Int>();
+        foreach (var l in allowedLayouts)
+        {
+            if (((l.x * l.y) % 2) == 0)
+                valid.Add(l);
+        }
+        if (valid.Count == 0) valid.Add(new Vector2Int(cols, rows));
+
+        // Choose random, avoiding immediate repeat if possible
+        Vector2Int chosen = valid[_layoutRng.Next(valid.Count)];
+        if (valid.Count > 1 && chosen == _lastLayout)
+        {
+            // pick another
+            chosen = valid[_layoutRng.Next(valid.Count)];
+        }
+        return chosen;
+    }
+    #endregion
 }
